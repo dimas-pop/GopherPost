@@ -11,6 +11,20 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// @title 			GopherPost API
+// @version			1.0.0
+// @description 	Ini adalah server API untuk GopherPost
+// @termsOfService 	http://swagger.io/terms/
+
+// @contact.name 	Dimas Saputra
+// @contact.email 	dsaputra5403@gmail.com
+
+// @host 			localhost:8080
+// @BasePath 		/api
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
 func main() {
 	err := godotenv.Load()
 	if err != nil {
@@ -19,7 +33,7 @@ func main() {
 
 	dbURL := os.Getenv("DB_URL")
 	if dbURL == "" {
-		log.Fatal("DB_URL not foun in .env file, Error:")
+		log.Fatal("DB_URL not found in .env file, Error:")
 	}
 
 	dbpool := db.InitDB(dbURL)

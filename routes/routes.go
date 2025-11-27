@@ -5,18 +5,22 @@ import (
 	"gopher-post/middleware"
 
 	"github.com/gorilla/mux"
+
+	_ "gopher-post/docs"
+
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 func SetupRoutes(srv *handlers.Server) *mux.Router {
 	router := mux.NewRouter()
 
-	router.HandleFunc("/", handlers.RootHandler).Methods("GET")
 	router.HandleFunc("/login", srv.LoginHandler).Methods("POST")
 	router.HandleFunc("/register", srv.CreateUserHandler).Methods("POST")
 	router.HandleFunc("/posts", srv.GetPostAllHandler).Methods("GET")
 	router.HandleFunc("/posts/{id}", srv.GetPostByIDHandler).Methods("GET")
 	router.HandleFunc("/posts/{id}/comments", srv.GetCommentHandler).Methods("GET")
 
+	router.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 	api := router.PathPrefix("/api").Subrouter()
 	api.Use(middleware.AuthMiddleware)
 

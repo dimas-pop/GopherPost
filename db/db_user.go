@@ -29,14 +29,13 @@ func GetUserAll(dbpool *pgxpool.Pool) (*[]models.User, error) {
 }
 
 func GetUserByID(dbpool *pgxpool.Pool, id string) (*models.User, error) {
-	query := "SELECT id, name, email, password_hash, created_at FROM users WHERE id = $1"
+	query := "SELECT id, name, email, created_at FROM users WHERE id = $1"
 
 	var user models.User
 	err := dbpool.QueryRow(ctx, query, id).Scan(
 		&user.ID,
 		&user.Name,
 		&user.Email,
-		&user.PasswordHash,
 		&user.CreatedAt,
 	)
 	if err != nil {
@@ -47,11 +46,13 @@ func GetUserByID(dbpool *pgxpool.Pool, id string) (*models.User, error) {
 }
 
 func GetUserByEmail(dbpool *pgxpool.Pool, email string) (*models.User, error) {
-	query := "SELECT id, password_hash FROM users WHERE email = $1"
+	query := "SELECT id, name, email, password_hash FROM users WHERE email = $1"
 
 	var user models.User
 	err := dbpool.QueryRow(ctx, query, email).Scan(
 		&user.ID,
+		&user.Name,
+		&user.Email,
 		&user.PasswordHash,
 	)
 	if err != nil {
@@ -76,10 +77,10 @@ func CheckEmailExists(dbpool *pgxpool.Pool, email string) (bool, error) {
 	return true, nil
 }
 
-func CreateUserInDB(dbpool *pgxpool.Pool, name string, email string, pass_hash string) error {
+func CreateUserInDB(dbpool *pgxpool.Pool, name string, email string, passwordHash string) error {
 	query := "INSERT INTO users (name, email, password_hash) VALUES ($1, $2, $3)"
 
-	_, err := dbpool.Exec(ctx, query, name, email, pass_hash)
+	_, err := dbpool.Exec(ctx, query, name, email, passwordHash)
 	if err != nil {
 		return err
 	}
