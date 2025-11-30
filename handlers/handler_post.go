@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"gopher-post/db"
 	"gopher-post/middleware"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -95,16 +96,19 @@ func (s *Server) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 
 	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
 	if !ok || userID == "" {
+		slog.WarnContext(r.Context(), "User id missing", "error", err)
 		JSONError(w, "Unauthorized: User ID missing", http.StatusUnauthorized)
 		return
 	}
 
 	err = db.CreatePostInDB(s.DB, newPost.Title, newPost.Content, userID)
 	if err != nil {
+		slog.ErrorContext(r.Context(), "Failed create post in DB", "error", err)
 		JSONError(w, "Failed to create post", http.StatusInternalServerError)
 		return
 	}
 
+	slog.InfoContext(r.Context(), "Post created")
 	JSONSuccess(w, SuccessResponse{Message: "post created"}, http.StatusCreated)
 }
 
@@ -134,10 +138,12 @@ func (s *Server) UpdatePostHandler(w http.ResponseWriter, r *http.Request) {
 
 	err = db.UpdatePostByID(s.DB, input.Title, input.Content, id)
 	if err != nil {
+		slog.ErrorContext(r.Context(), "Failed to update post in DB", "error", err)
 		JSONError(w, "Failed to update post", http.StatusInternalServerError)
 		return
 	}
 
+	slog.InfoContext(r.Context(), "Post updated")
 	JSONSuccess(w, SuccessResponse{Message: "post updated"}, http.StatusOK)
 }
 
@@ -158,9 +164,11 @@ func (s *Server) DeletePostHandler(w http.ResponseWriter, r *http.Request) {
 
 	err := db.DeletePostByID(s.DB, id)
 	if err != nil {
+		slog.ErrorContext(r.Context(), "Failed delete post in DB", "error", err)
 		JSONError(w, "Failed delete post", http.StatusInternalServerError)
 		return
 	}
 
+	slog.InfoContext(r.Context(), "Post deleted")
 	JSONSuccess(w, SuccessResponse{Message: "post deleted"}, http.StatusOK)
 }

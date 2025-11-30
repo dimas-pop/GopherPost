@@ -4,7 +4,7 @@ import (
 	"gopher-post/db"
 	"gopher-post/handlers"
 	"gopher-post/routes"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 
@@ -26,14 +26,19 @@ import (
 // @in header
 // @name Authorization
 func main() {
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	slog.SetDefault(logger)
+
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatal("Error loading .env file, Error:", err)
+		slog.Error("Error loading .env file", "error", err)
+		os.Exit(1)
 	}
 
 	dbURL := os.Getenv("DB_URL")
 	if dbURL == "" {
-		log.Fatal("DB_URL not found in .env file, Error:")
+		slog.Error("DB_URL not found in .env file")
+		os.Exit(1)
 	}
 
 	dbpool := db.InitDB(dbURL)
@@ -45,6 +50,9 @@ func main() {
 
 	r := routes.SetupRoutes(srv)
 
-	log.Println("Menjalankan server di port 8080...")
-	http.ListenAndServe(":8080", r)
+	slog.Info("Server starting", "port", 8080)
+	if err := http.ListenAndServe(":8080", r); err != nil {
+		slog.Error("Server failed to start", "error", err)
+		os.Exit(1)
+	}
 }

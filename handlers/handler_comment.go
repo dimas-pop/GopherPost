@@ -2,9 +2,9 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"gopher-post/db"
 	"gopher-post/middleware"
+	"log/slog"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -25,7 +25,6 @@ func (s *Server) GetCommentHandler(w http.ResponseWriter, r *http.Request) {
 
 	result, err := db.GetCommentByPostID(s.DB, postID)
 	if err != nil {
-		fmt.Println("error:", err)
 		JSONError(w, "Failed get comment", http.StatusBadRequest)
 		return
 	}
@@ -61,10 +60,12 @@ func (s *Server) CreateCommentHandler(w http.ResponseWriter, r *http.Request) {
 
 	err = db.CreateCommentInDB(s.DB, input.Content, userID, postID)
 	if err != nil {
+		slog.ErrorContext(r.Context(), "Failed create comment", "error", err)
 		JSONError(w, "Failed create comment", http.StatusInternalServerError)
 		return
 	}
 
+	slog.InfoContext(r.Context(), "Comment created")
 	JSONSuccess(w, SuccessResponse{Message: "comment created"}, http.StatusCreated)
 }
 
@@ -88,20 +89,24 @@ func (s *Server) DeleteCommentHandler(w http.ResponseWriter, r *http.Request) {
 
 	userID, err := db.GetCommentOwnerID(s.DB, commentID)
 	if err != nil {
+		slog.WarnContext(r.Context(), "Failed found user_id", "error", err)
 		JSONError(w, "Failed get user_id", http.StatusNotFound)
 		return
 	}
 
 	if currentUserID != userID {
+		slog.WarnContext(r.Context(), "Invalid user_id")
 		JSONError(w, "Invalid user_id", http.StatusForbidden)
 		return
 	}
 
 	err = db.DeleteCommentByID(s.DB, commentID)
 	if err != nil {
+		slog.ErrorContext(r.Context(), "Failed delete comment", "error", err)
 		JSONError(w, "Failed delete comment", http.StatusInternalServerError)
 		return
 	}
 
+	slog.InfoContext(r.Context(), "Comment deleted")
 	JSONSuccess(w, SuccessResponse{Message: "comment deleted"}, http.StatusOK)
 }

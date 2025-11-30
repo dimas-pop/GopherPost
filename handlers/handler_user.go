@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"gopher-post/db"
 	"gopher-post/utils"
+	"log"
+	"log/slog"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -20,6 +22,7 @@ import (
 func (s *Server) GetUserAllHandler(w http.ResponseWriter, r *http.Request) {
 	users, err := db.GetUserAll(s.DB)
 	if err != nil {
+		log.Printf("")
 		JSONError(w, "Database error", http.StatusInternalServerError)
 		return
 	}
@@ -73,6 +76,7 @@ func (s *Server) CreateUserHandler(w http.ResponseWriter, r *http.Request) {
 
 	exists, err := db.CheckEmailExists(s.DB, input.Email)
 	if err != nil {
+		slog.ErrorContext(r.Context(), "Failed check email in DB", "error", err)
 		JSONError(w, "Failed database check", http.StatusInternalServerError)
 		return
 	}
@@ -84,16 +88,19 @@ func (s *Server) CreateUserHandler(w http.ResponseWriter, r *http.Request) {
 
 	password_hash, err := utils.HashPassword(input.Password)
 	if err != nil {
+		slog.ErrorContext(r.Context(), "Failed hashing password", "error", err)
 		JSONError(w, "Failed hash password", http.StatusInternalServerError)
 		return
 	}
 
 	err = db.CreateUserInDB(s.DB, input.Name, input.Email, password_hash)
 	if err != nil {
+		slog.ErrorContext(r.Context(), "Failed create user in DB", "error", err)
 		JSONError(w, "Failed create user", http.StatusInternalServerError)
 		return
 	}
 
+	slog.InfoContext(r.Context(), "User created")
 	JSONSuccess(w, SuccessResponse{Message: "user created"}, http.StatusCreated)
 }
 
@@ -123,10 +130,12 @@ func (s *Server) UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 
 	err = db.UpdateUserByID(s.DB, input.Name, input.Email, id)
 	if err != nil {
+		slog.ErrorContext(r.Context(), "Failed update user in DB", "error", err)
 		JSONError(w, "Failed update user", http.StatusInternalServerError)
 		return
 	}
 
+	slog.InfoContext(r.Context(), "User updated")
 	JSONSuccess(w, SuccessResponse{Message: "user updated"}, http.StatusOK)
 }
 
@@ -145,9 +154,11 @@ func (s *Server) DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
 
 	err := db.DeleteUserByID(s.DB, id)
 	if err != nil {
+		slog.ErrorContext(r.Context(), "Failed delete user in DB", "error", err)
 		JSONError(w, "Failed delete user", http.StatusInternalServerError)
 		return
 	}
 
+	slog.InfoContext(r.Context(), "User deleted")
 	JSONSuccess(w, SuccessResponse{Message: "user deleted"}, http.StatusOK)
 }
