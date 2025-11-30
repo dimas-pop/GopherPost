@@ -47,6 +47,18 @@ func GetPostByID(dbpool *pgxpool.Pool, id string) (*models.Post, error) {
 	return &post, nil
 }
 
+func GetPostOwnerID(dbpool *pgxpool.Pool, id string) (string, error) {
+	query := "SELECT user_id FROM posts WHERE id = $1"
+
+	var userID string
+	err := dbpool.QueryRow(ctx, query, id).Scan(&userID)
+	if err != nil {
+		return "", err
+	}
+
+	return userID, nil
+}
+
 func CreatePostInDB(dbpool *pgxpool.Pool, title string, content string, user_id string) error {
 	query := "INSERT INTO posts (title, content, user_id) VALUES ($1, $2, $3)"
 

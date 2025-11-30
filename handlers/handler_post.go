@@ -127,18 +127,33 @@ func (s *Server) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 // @Router       /api/posts/{id} [put]
 func (s *Server) UpdatePostHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	id := vars["id"]
+	postID := vars["id"]
+
+	currentUserID := r.Context().Value(middleware.UserIDKey).(string)
+
+	ownerID, err := db.GetPostOwnerID(s.DB, postID)
+	if err != nil {
+		slog.WarnContext(r.Context(), "Not found post", "error", err)
+		JSONError(w, "Failed get post", http.StatusNotFound)
+		return
+	}
+
+	if currentUserID != ownerID {
+		slog.WarnContext(r.Context(), "Invalid user_id")
+		JSONError(w, "Invalid user_id", http.StatusForbidden)
+		return
+	}
 
 	var input UpdatePostInput
-	err := json.NewDecoder(r.Body).Decode(&input)
+	err = json.NewDecoder(r.Body).Decode(&input)
 	if err != nil {
 		JSONError(w, "Bad request input", http.StatusBadRequest)
 		return
 	}
 
-	err = db.UpdatePostByID(s.DB, input.Title, input.Content, id)
+	err = db.UpdatePostByID(s.DB, input.Title, input.Content, postID)
 	if err != nil {
-		slog.ErrorContext(r.Context(), "Failed to update post in DB", "error", err)
+		slog.ErrorContext(r.Context(), "Failed to update post in DB", "error", err, "post_id", postID)
 		JSONError(w, "Failed to update post", http.StatusInternalServerError)
 		return
 	}
@@ -160,12 +175,27 @@ func (s *Server) UpdatePostHandler(w http.ResponseWriter, r *http.Request) {
 // @Router       /api/posts/{id} [delete]
 func (s *Server) DeletePostHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	id := vars["id"]
+	postID := vars["id"]
 
-	err := db.DeletePostByID(s.DB, id)
+	currentUserID := r.Context().Value(middleware.UserIDKey).(string)
+
+	ownerID, err := db.GetPostOwnerID(s.DB, postID)
 	if err != nil {
-		slog.ErrorContext(r.Context(), "Failed delete post in DB", "error", err)
-		JSONError(w, "Failed delete post", http.StatusInternalServerError)
+		slog.WarnContext(r.Context(), "Not found post", "error", err)
+		JSONError(w, "Failed to get post", http.StatusNotFound)
+		return
+	}
+
+	if currentUserID != ownerID {
+		slog.WarnContext(r.Context(), "Invalid user_id")
+		JSONError(w, "Invalid user_id", http.StatusForbidden)
+		return
+	}
+
+	err = db.DeletePostByID(s.DB, postID)
+	if err != nil {
+		slog.ErrorContext(r.Context(), "Failed delete post in DB", "error", err, "post_id", postID)
+		JSONError(w, "Failed to delete post", http.StatusInternalServerError)
 		return
 	}
 

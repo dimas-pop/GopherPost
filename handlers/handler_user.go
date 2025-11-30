@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"gopher-post/db"
+	"gopher-post/middleware"
 	"gopher-post/utils"
 	"log"
 	"log/slog"
@@ -118,7 +119,6 @@ func (s *Server) CreateUserHandler(w http.ResponseWriter, r *http.Request) {
 // @Router       /users/{id} [put]
 func (s *Server) UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 	var input UpdateUserInput
-
 	err := json.NewDecoder(r.Body).Decode(&input)
 	if err != nil {
 		JSONError(w, "Bad Request", http.StatusBadRequest)
@@ -128,9 +128,16 @@ func (s *Server) UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
+	currentUserID := r.Context().Value(middleware.UserIDKey).(string)
+	if currentUserID != id {
+		slog.WarnContext(r.Context(), "Invalid user")
+		JSONError(w, "Invalid user", http.StatusForbidden)
+		return
+	}
+
 	err = db.UpdateUserByID(s.DB, input.Name, input.Email, id)
 	if err != nil {
-		slog.ErrorContext(r.Context(), "Failed update user in DB", "error", err)
+		slog.ErrorContext(r.Context(), "Failed update user in DB", "error", err, "user_id", id)
 		JSONError(w, "Failed update user", http.StatusInternalServerError)
 		return
 	}
@@ -152,9 +159,16 @@ func (s *Server) DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
+	currentUserID := r.Context().Value(middleware.UserIDKey).(string)
+	if currentUserID != id {
+		slog.WarnContext(r.Context(), "Invalid user")
+		JSONError(w, "Invalid user", http.StatusForbidden)
+		return
+	}
+
 	err := db.DeleteUserByID(s.DB, id)
 	if err != nil {
-		slog.ErrorContext(r.Context(), "Failed delete user in DB", "error", err)
+		slog.ErrorContext(r.Context(), "Failed delete user in DB", "error", err, "user_id", id)
 		JSONError(w, "Failed delete user", http.StatusInternalServerError)
 		return
 	}
