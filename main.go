@@ -19,8 +19,7 @@ import (
 // @contact.name 	Dimas Saputra
 // @contact.email 	dsaputra5403@gmail.com
 
-// @host 			localhost:8080
-// @BasePath 		/api
+// @BasePath 		/
 
 // @securityDefinitions.apikey BearerAuth
 // @in header

@@ -19,7 +19,7 @@ import (
 // @Produce      json
 // @Success      200  {array}   models.User
 // @Failure      500  {object}  handlers.ErrorResponse
-// @Router       /users [get]
+// @Router       /api/users [get]
 func (s *Server) GetUserAllHandler(w http.ResponseWriter, r *http.Request) {
 	users, err := db.GetUserAll(s.DB)
 	if err != nil {
@@ -40,7 +40,7 @@ func (s *Server) GetUserAllHandler(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  models.User
 // @Failure      404  {object}  handlers.ErrorResponse
 // @Failure      500  {object}  handlers.ErrorResponse
-// @Router       /users/{id} [get]
+// @Router       /api/users/{id} [get]
 func (s *Server) GetUserByIDHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
@@ -116,7 +116,7 @@ func (s *Server) CreateUserHandler(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  handlers.SuccessResponse
 // @Failure      400  {object}  handlers.ErrorResponse
 // @Failure      500  {object}  handlers.ErrorResponse
-// @Router       /users/{id} [put]
+// @Router       /api/users/{id} [put]
 func (s *Server) UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 	var input UpdateUserInput
 	err := json.NewDecoder(r.Body).Decode(&input)
@@ -154,7 +154,7 @@ func (s *Server) UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 // @Param        id   path      string  true  "User ID (UUID)"
 // @Success      200  {object}  handlers.SuccessResponse
 // @Failure      500  {object}  handlers.ErrorResponse
-// @Router       /users/{id} [delete]
+// @Router       /api/users/{id} [delete]
 func (s *Server) DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
