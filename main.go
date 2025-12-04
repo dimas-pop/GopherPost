@@ -31,8 +31,7 @@ func main() {
 
 	err := godotenv.Load()
 	if err != nil {
-		slog.Error("Error loading .env file", "error", err)
-		os.Exit(1)
+		slog.Info("File .env not found, using system environment variables")
 	}
 
 	dbURL := os.Getenv("DB_URL")
