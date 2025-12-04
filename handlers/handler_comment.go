@@ -87,14 +87,14 @@ func (s *Server) DeleteCommentHandler(w http.ResponseWriter, r *http.Request) {
 
 	currentUserID := r.Context().Value(middleware.UserIDKey).(string)
 
-	userID, err := db.GetCommentOwnerID(s.DB, commentID)
+	ownerID, err := db.GetCommentOwnerID(s.DB, commentID)
 	if err != nil {
 		slog.WarnContext(r.Context(), "Failed found user_id", "error", err)
 		JSONError(w, "Failed get user_id", http.StatusNotFound)
 		return
 	}
 
-	if currentUserID != userID {
+	if currentUserID != ownerID {
 		slog.WarnContext(r.Context(), "Invalid user_id")
 		JSONError(w, "Invalid user_id", http.StatusForbidden)
 		return
