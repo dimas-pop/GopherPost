@@ -1,9 +1,10 @@
 # GopherPost - RESTful API Service 🚀
 
-![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat&logo=go)
-![Database](https://img.shields.io/badge/PostgreSQL-15+-316192?style=flat&logo=postgresql)
+![Go Version](https://img.shields.io/badge/Go-1.25.3+-00ADD8?style=flat&logo=go)
+![Database](https://img.shields.io/badge/PostgreSQL-18.1+-316192?style=flat&logo=postgresql)
 ![Swagger](https://img.shields.io/badge/Swagger-OpenAPI-85EA2D?style=flat&logo=swagger)
 ![License](https://img.shields.io/badge/License-MIT-blue.svg)
+[![Live Demo](https://img.shields.io/badge/Demo-Try%20API%20Here-blue?style=for-the-badge&logo=swagger)](https://gopherpost-production.up.railway.app/swagger/index.html)
 
 **GopherPost** adalah layanan REST API backend modern yang dibangun menggunakan Golang. Proyek ini mensimulasikan sistem manajemen konten (Headless CMS) dengan fitur autentikasi yang aman, manajemen relasi database, dan dokumentasi API interaktif.
 
