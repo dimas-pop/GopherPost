@@ -16,6 +16,7 @@ import (
 // @Description  Retrieves a list of all registered users
 // @Tags         users
 // @Produce      json
+// @Security     BearerAuth
 // @Success      200  {array}   models.User
 // @Failure      500  {object}  handlers.ErrorResponse
 // @Router       /api/users [get]
@@ -35,6 +36,7 @@ func (s *Server) GetUserAllHandler(w http.ResponseWriter, r *http.Request) {
 // @Tags         users
 // @Produce      json
 // @Param        id   path      string  true  "ID User (UUID)"
+// @Security     BearerAuth
 // @Success      200  {object}  models.User
 // @Failure      404  {object}  handlers.ErrorResponse
 // @Failure      500  {object}  handlers.ErrorResponse
@@ -121,6 +123,7 @@ func (s *Server) CreateUserHandler(w http.ResponseWriter, r *http.Request) {
 // @Produce      json
 // @Param        id   path      string  true  "User ID (UUID)"
 // @Param        request body handlers.UpdateUserInput true "Updated user data"
+// @Security     BearerAuth
 // @Success      200  {object}  handlers.SuccessResponse
 // @Failure      400  {object}  handlers.ErrorResponse
 // @Failure      500  {object}  handlers.ErrorResponse
@@ -167,6 +170,7 @@ func (s *Server) UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 // @Tags         users
 // @Produce      json
 // @Param        id   path      string  true  "User ID (UUID)"
+// @Security     BearerAuth
 // @Success      200  {object}  handlers.SuccessResponse
 // @Failure      500  {object}  handlers.ErrorResponse
 // @Router       /api/users/{id} [delete]
