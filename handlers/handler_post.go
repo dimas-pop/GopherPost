@@ -4,17 +4,13 @@ import (
 	"encoding/json"
 	"gopher-post/db"
 	"gopher-post/middleware"
+	"gopher-post/utils"
 	"log/slog"
 	"net/http"
 	"strconv"
 
 	"github.com/gorilla/mux"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
-
-type Server struct {
-	DB *pgxpool.Pool
-}
 
 // GetAllPostsHandler godoc
 // @Summary      Melihat semua postingan
@@ -42,11 +38,11 @@ func (s *Server) GetPostAllHandler(w http.ResponseWriter, r *http.Request) {
 
 	posts, err := db.GetPostAll(s.DB, limit, offSet)
 	if err != nil {
-		JSONError(w, "Database error", http.StatusInternalServerError)
+		utils.JSONError(w, "Database error", http.StatusInternalServerError)
 		return
 	}
 
-	JSONSuccess(w, &posts, http.StatusOK)
+	utils.JSONSuccess(w, &posts, http.StatusOK)
 }
 
 // GetPostByIDHandler godoc
@@ -66,11 +62,11 @@ func (s *Server) GetPostByIDHandler(w http.ResponseWriter, r *http.Request) {
 
 	post, err := db.GetPostByID(s.DB, id)
 	if err != nil {
-		JSONError(w, "Post not found or database error", http.StatusInternalServerError)
+		utils.JSONError(w, "Post not found or database error", http.StatusInternalServerError)
 		return
 	}
 
-	JSONSuccess(w, &post, http.StatusOK)
+	utils.JSONSuccess(w, &post, http.StatusOK)
 }
 
 // CreatePostHandler godoc
@@ -90,26 +86,31 @@ func (s *Server) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 	var newPost CreatePostInput
 	err := json.NewDecoder(r.Body).Decode(&newPost)
 	if err != nil {
-		JSONError(w, "Bad request input", http.StatusBadRequest)
+		utils.JSONError(w, "Bad request input", http.StatusBadRequest)
 		return
 	}
 
 	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
 	if !ok || userID == "" {
-		slog.WarnContext(r.Context(), "User id missing", "error", err)
-		JSONError(w, "Unauthorized: User ID missing", http.StatusUnauthorized)
+		slog.WarnContext(r.Context(), "Auth Context missing UserID")
+		utils.JSONError(w, "Unauthorized: User ID missing", http.StatusUnauthorized)
 		return
 	}
 
 	err = db.CreatePostInDB(s.DB, newPost.Title, newPost.Content, userID)
 	if err != nil {
-		slog.ErrorContext(r.Context(), "Failed create post in DB", "error", err)
-		JSONError(w, "Failed to create post", http.StatusInternalServerError)
+		slog.ErrorContext(r.Context(), "Failed create post in DB",
+			"error", err,
+			"user_id", userID,
+		)
+		utils.JSONError(w, "Failed to create post", http.StatusInternalServerError)
 		return
 	}
 
-	slog.InfoContext(r.Context(), "Post created")
-	JSONSuccess(w, SuccessResponse{Message: "post created"}, http.StatusCreated)
+	slog.InfoContext(r.Context(), "Post created successfully",
+		"user_id", userID,
+	)
+	utils.JSONSuccess(w, utils.SuccessResponse{Message: "post created"}, http.StatusCreated)
 }
 
 // UpdatePostHandler godoc
@@ -129,37 +130,54 @@ func (s *Server) UpdatePostHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	postID := vars["id"]
 
-	currentUserID := r.Context().Value(middleware.UserIDKey).(string)
+	currentUserID, ok := r.Context().Value(middleware.UserIDKey).(string)
+	if !ok || currentUserID == "" {
+		slog.ErrorContext(r.Context(), "Auth Context missing UserID")
+		utils.JSONError(w, "Unauthorized", http.StatusUnauthorized)
+	}
 
 	ownerID, err := db.GetPostOwnerID(s.DB, postID)
 	if err != nil {
-		slog.WarnContext(r.Context(), "Not found post", "error", err)
-		JSONError(w, "Failed get post", http.StatusNotFound)
+		slog.WarnContext(r.Context(), "Update failed: Not found post",
+			"error", err,
+			"post_id", postID,
+		)
+		utils.JSONError(w, "Failed get post", http.StatusNotFound)
 		return
 	}
 
 	if currentUserID != ownerID {
-		slog.WarnContext(r.Context(), "Invalid user_id")
-		JSONError(w, "Invalid user_id", http.StatusForbidden)
+		slog.WarnContext(r.Context(), "Update failed: Forbidden access",
+			"post_id", postID,
+			"attempt_by_user_id", currentUserID,
+			"target_owner_id", ownerID,
+		)
+		utils.JSONError(w, "You are not allowed to update this post", http.StatusForbidden)
 		return
 	}
 
 	var input UpdatePostInput
 	err = json.NewDecoder(r.Body).Decode(&input)
 	if err != nil {
-		JSONError(w, "Bad request input", http.StatusBadRequest)
+		utils.JSONError(w, "Bad request input", http.StatusBadRequest)
 		return
 	}
 
 	err = db.UpdatePostByID(s.DB, input.Title, input.Content, postID)
 	if err != nil {
-		slog.ErrorContext(r.Context(), "Failed to update post in DB", "error", err, "post_id", postID)
-		JSONError(w, "Failed to update post", http.StatusInternalServerError)
+		slog.ErrorContext(r.Context(), "Failed to update post in DB",
+			"error", err,
+			"post_id", postID,
+		)
+		utils.JSONError(w, "Failed to update post", http.StatusInternalServerError)
 		return
 	}
 
-	slog.InfoContext(r.Context(), "Post updated")
-	JSONSuccess(w, SuccessResponse{Message: "post updated"}, http.StatusOK)
+	slog.InfoContext(r.Context(), "Post updated successfully",
+		"post_id", postID,
+		"user_id", currentUserID,
+	)
+	utils.JSONSuccess(w, utils.SuccessResponse{Message: "post updated"}, http.StatusOK)
 }
 
 // DeletePostHandler godoc
@@ -177,28 +195,45 @@ func (s *Server) DeletePostHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	postID := vars["id"]
 
-	currentUserID := r.Context().Value(middleware.UserIDKey).(string)
+	currentUserID, ok := r.Context().Value(middleware.UserIDKey).(string)
+	if !ok || currentUserID == "" {
+		slog.ErrorContext(r.Context(), "Auth Context missing UserID")
+		utils.JSONError(w, "Unauthorized", http.StatusUnauthorized)
+	}
 
 	ownerID, err := db.GetPostOwnerID(s.DB, postID)
 	if err != nil {
-		slog.WarnContext(r.Context(), "Not found post", "error", err)
-		JSONError(w, "Failed to get post", http.StatusNotFound)
+		slog.WarnContext(r.Context(), "Not found post",
+			"error", err,
+			"post_id", postID,
+		)
+		utils.JSONError(w, "Failed to get post", http.StatusNotFound)
 		return
 	}
 
 	if currentUserID != ownerID {
-		slog.WarnContext(r.Context(), "Invalid user_id")
-		JSONError(w, "Invalid user_id", http.StatusForbidden)
+		slog.WarnContext(r.Context(), "Invalid user_id",
+			"post_id", postID,
+			"attempt_by_user_id", currentUserID,
+			"target_owner_id", ownerID,
+		)
+		utils.JSONError(w, "Invalid user_id", http.StatusForbidden)
 		return
 	}
 
 	err = db.DeletePostByID(s.DB, postID)
 	if err != nil {
-		slog.ErrorContext(r.Context(), "Failed delete post in DB", "error", err, "post_id", postID)
-		JSONError(w, "Failed to delete post", http.StatusInternalServerError)
+		slog.ErrorContext(r.Context(), "Failed delete post in DB",
+			"error", err,
+			"post_id", postID,
+		)
+		utils.JSONError(w, "Failed to delete post", http.StatusInternalServerError)
 		return
 	}
 
-	slog.InfoContext(r.Context(), "Post deleted")
-	JSONSuccess(w, SuccessResponse{Message: "post deleted"}, http.StatusOK)
+	slog.InfoContext(r.Context(), "Post deleted successfully",
+		"post_id", postID,
+		"user_id", currentUserID,
+	)
+	utils.JSONSuccess(w, utils.SuccessResponse{Message: "post deleted"}, http.StatusOK)
 }

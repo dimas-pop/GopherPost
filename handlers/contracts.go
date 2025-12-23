@@ -1,5 +1,11 @@
 package handlers
 
+import "github.com/jackc/pgx/v5/pgxpool"
+
+type Server struct {
+	DB *pgxpool.Pool
+}
+
 // -- AUTH --
 type LoginInput struct {
 	Email    string `json:"email"`
@@ -32,18 +38,4 @@ type UpdatePostInput struct {
 // -- COMMENT --
 type CreateCommentInput struct {
 	Content string `json:"content"`
-}
-
-// -- Response --
-type SuccessResponse struct {
-	Message string `json:"message"`
-}
-
-type ErrorResponse struct {
-	Error string `json:"error"`
-}
-
-type LoginResponse struct {
-	Message string `json:"message"`
-	Token   string `json:"token"`
 }

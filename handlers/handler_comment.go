@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"gopher-post/db"
 	"gopher-post/middleware"
+	"gopher-post/utils"
 	"log/slog"
 	"net/http"
 
@@ -25,11 +26,11 @@ func (s *Server) GetCommentHandler(w http.ResponseWriter, r *http.Request) {
 
 	result, err := db.GetCommentByPostID(s.DB, postID)
 	if err != nil {
-		JSONError(w, "Failed get comment", http.StatusBadRequest)
+		utils.JSONError(w, "Failed get comment", http.StatusBadRequest)
 		return
 	}
 
-	JSONSuccess(w, &result, http.StatusOK)
+	utils.JSONSuccess(w, &result, http.StatusOK)
 }
 
 // CreateCommentHandler godoc
@@ -50,7 +51,7 @@ func (s *Server) CreateCommentHandler(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&input)
 	if err != nil {
-		JSONError(w, "Bad Request", http.StatusBadRequest)
+		utils.JSONError(w, "Bad Request", http.StatusBadRequest)
 		return
 	}
 
@@ -60,13 +61,20 @@ func (s *Server) CreateCommentHandler(w http.ResponseWriter, r *http.Request) {
 
 	err = db.CreateCommentInDB(s.DB, input.Content, userID, postID)
 	if err != nil {
-		slog.ErrorContext(r.Context(), "Failed create comment", "error", err)
-		JSONError(w, "Failed create comment", http.StatusInternalServerError)
+		slog.ErrorContext(r.Context(), "Failed create comment",
+			"post_id", postID,
+			"user_id", userID,
+			"error", err,
+		)
+		utils.JSONError(w, "Failed create comment", http.StatusInternalServerError)
 		return
 	}
 
-	slog.InfoContext(r.Context(), "Comment created")
-	JSONSuccess(w, SuccessResponse{Message: "comment created"}, http.StatusCreated)
+	slog.InfoContext(r.Context(), "Comment created successfully",
+		"post_id", postID,
+		"user_id", userID,
+	)
+	utils.JSONSuccess(w, utils.SuccessResponse{Message: "comment created"}, http.StatusCreated)
 }
 
 // DeleteCommentHandler godoc
@@ -85,28 +93,46 @@ func (s *Server) DeleteCommentHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	commentID := vars["id"]
 
-	currentUserID := r.Context().Value(middleware.UserIDKey).(string)
+	currentUserID, ok := r.Context().Value(middleware.UserIDKey).(string)
+	if !ok || currentUserID == "" {
+		slog.ErrorContext(r.Context(), "Auth Context missing UserID")
+		utils.JSONError(w, "Unauthorized", http.StatusUnauthorized)
+	}
 
 	ownerID, err := db.GetCommentOwnerID(s.DB, commentID)
 	if err != nil {
-		slog.WarnContext(r.Context(), "Failed found user_id", "error", err)
-		JSONError(w, "Failed get user_id", http.StatusNotFound)
+		slog.WarnContext(r.Context(), "Delete failed: Comment not found",
+			"error", err,
+			"comment_id", commentID,
+		)
+		utils.JSONError(w, "Comment not found", http.StatusNotFound)
 		return
 	}
 
 	if currentUserID != ownerID {
-		slog.WarnContext(r.Context(), "Invalid user_id")
-		JSONError(w, "Invalid user_id", http.StatusForbidden)
+		slog.WarnContext(r.Context(), "Delete failed: Forbidden access",
+			"comment_id", commentID,
+			"attempt_by_user_id", currentUserID,
+			"target_owner_id", ownerID,
+		)
+		utils.JSONError(w, "You are not allowed to delete this comment", http.StatusForbidden)
 		return
 	}
 
 	err = db.DeleteCommentByID(s.DB, commentID)
 	if err != nil {
-		slog.ErrorContext(r.Context(), "Failed delete comment", "error", err)
-		JSONError(w, "Failed delete comment", http.StatusInternalServerError)
+		slog.ErrorContext(r.Context(), "Failed delete comment",
+			"error", err,
+			"comment_id", commentID,
+			"user_id", currentUserID,
+		)
+		utils.JSONError(w, "Failed delete comment", http.StatusInternalServerError)
 		return
 	}
 
-	slog.InfoContext(r.Context(), "Comment deleted")
-	JSONSuccess(w, SuccessResponse{Message: "comment deleted"}, http.StatusOK)
+	slog.InfoContext(r.Context(), "Comment deleted successfully",
+		"comment_id", commentID,
+		"user_id", currentUserID,
+	)
+	utils.JSONSuccess(w, utils.SuccessResponse{Message: "comment deleted"}, http.StatusOK)
 }

@@ -5,7 +5,6 @@ import (
 	"gopher-post/db"
 	"gopher-post/middleware"
 	"gopher-post/utils"
-	"log"
 	"log/slog"
 	"net/http"
 
@@ -23,12 +22,11 @@ import (
 func (s *Server) GetUserAllHandler(w http.ResponseWriter, r *http.Request) {
 	users, err := db.GetUserAll(s.DB)
 	if err != nil {
-		log.Printf("")
-		JSONError(w, "Database error", http.StatusInternalServerError)
+		utils.JSONError(w, "Database error", http.StatusInternalServerError)
 		return
 	}
 
-	JSONSuccess(w, &users, http.StatusOK)
+	utils.JSONSuccess(w, &users, http.StatusOK)
 }
 
 // GetUserByIDHandler godoc
@@ -47,11 +45,11 @@ func (s *Server) GetUserByIDHandler(w http.ResponseWriter, r *http.Request) {
 
 	user, err := db.GetUserByID(s.DB, id)
 	if err != nil {
-		JSONError(w, "User not found or database error", http.StatusInternalServerError)
+		utils.JSONError(w, "User not found or database error", http.StatusInternalServerError)
 		return
 	}
 
-	JSONSuccess(w, &user, http.StatusOK)
+	utils.JSONSuccess(w, &user, http.StatusOK)
 }
 
 // CreateUserHandler godoc
@@ -71,38 +69,48 @@ func (s *Server) CreateUserHandler(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&input)
 	if err != nil {
-		JSONError(w, "Bad Request Input", http.StatusBadRequest)
+		utils.JSONError(w, "Bad Request Input", http.StatusBadRequest)
 		return
 	}
 
 	exists, err := db.CheckEmailExists(s.DB, input.Email)
 	if err != nil {
-		slog.ErrorContext(r.Context(), "Failed check email in DB", "error", err)
-		JSONError(w, "Failed database check", http.StatusInternalServerError)
+		slog.ErrorContext(r.Context(), "Failed check email in DB",
+			"error", err,
+			"email", input.Email,
+		)
+		utils.JSONError(w, "Failed database check", http.StatusInternalServerError)
 		return
 	}
 
 	if exists {
-		JSONError(w, "Email already in use", http.StatusConflict)
+		utils.JSONError(w, "Email already in use", http.StatusConflict)
 		return
 	}
 
 	password_hash, err := utils.HashPassword(input.Password)
 	if err != nil {
 		slog.ErrorContext(r.Context(), "Failed hashing password", "error", err)
-		JSONError(w, "Failed hash password", http.StatusInternalServerError)
+		utils.JSONError(w, "Failed hash password", http.StatusInternalServerError)
 		return
 	}
 
 	err = db.CreateUserInDB(s.DB, input.Name, input.Email, password_hash)
 	if err != nil {
-		slog.ErrorContext(r.Context(), "Failed create user in DB", "error", err)
-		JSONError(w, "Failed create user", http.StatusInternalServerError)
+		slog.ErrorContext(r.Context(), "Failed create user in DB",
+			"error", err,
+			"name", input.Name,
+			"email", input.Email,
+		)
+		utils.JSONError(w, "Failed create user", http.StatusInternalServerError)
 		return
 	}
 
-	slog.InfoContext(r.Context(), "User created")
-	JSONSuccess(w, SuccessResponse{Message: "user created"}, http.StatusCreated)
+	slog.InfoContext(r.Context(), "User created successfully",
+		"name", input.Name,
+		"email", input.Email,
+	)
+	utils.JSONSuccess(w, utils.SuccessResponse{Message: "user created"}, http.StatusCreated)
 }
 
 // UpdateUserHandler godoc
@@ -121,7 +129,7 @@ func (s *Server) UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 	var input UpdateUserInput
 	err := json.NewDecoder(r.Body).Decode(&input)
 	if err != nil {
-		JSONError(w, "Bad Request", http.StatusBadRequest)
+		utils.JSONError(w, "Bad Request", http.StatusBadRequest)
 		return
 	}
 
@@ -130,20 +138,27 @@ func (s *Server) UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 
 	currentUserID := r.Context().Value(middleware.UserIDKey).(string)
 	if currentUserID != id {
-		slog.WarnContext(r.Context(), "Invalid user")
-		JSONError(w, "Invalid user", http.StatusForbidden)
+		slog.WarnContext(r.Context(), "Invalid user",
+			"attempt_by_user_id", currentUserID,
+			"target_owner_id", id,
+		)
+		utils.JSONError(w, "Invalid user", http.StatusForbidden)
 		return
 	}
 
 	err = db.UpdateUserByID(s.DB, input.Name, input.Email, id)
 	if err != nil {
-		slog.ErrorContext(r.Context(), "Failed update user in DB", "error", err, "user_id", id)
-		JSONError(w, "Failed update user", http.StatusInternalServerError)
+		slog.ErrorContext(r.Context(), "Failed update user in DB",
+			"error", err,
+			"user_id", id)
+		utils.JSONError(w, "Failed update user", http.StatusInternalServerError)
 		return
 	}
 
-	slog.InfoContext(r.Context(), "User updated")
-	JSONSuccess(w, SuccessResponse{Message: "user updated"}, http.StatusOK)
+	slog.InfoContext(r.Context(), "User updated successfully",
+		"user_id", id,
+	)
+	utils.JSONSuccess(w, utils.SuccessResponse{Message: "user updated"}, http.StatusOK)
 }
 
 // DeleteUserHandler godoc
@@ -161,18 +176,26 @@ func (s *Server) DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
 
 	currentUserID := r.Context().Value(middleware.UserIDKey).(string)
 	if currentUserID != id {
-		slog.WarnContext(r.Context(), "Invalid user")
-		JSONError(w, "Invalid user", http.StatusForbidden)
+		slog.WarnContext(r.Context(), "Invalid user",
+			"attempt_by_user_id", currentUserID,
+			"target_owner_id", id,
+		)
+		utils.JSONError(w, "Invalid user", http.StatusForbidden)
 		return
 	}
 
 	err := db.DeleteUserByID(s.DB, id)
 	if err != nil {
-		slog.ErrorContext(r.Context(), "Failed delete user in DB", "error", err, "user_id", id)
-		JSONError(w, "Failed delete user", http.StatusInternalServerError)
+		slog.ErrorContext(r.Context(), "Failed delete user in DB",
+			"error", err,
+			"user_id", id,
+		)
+		utils.JSONError(w, "Failed delete user", http.StatusInternalServerError)
 		return
 	}
 
-	slog.InfoContext(r.Context(), "User deleted")
-	JSONSuccess(w, SuccessResponse{Message: "user deleted"}, http.StatusOK)
+	slog.InfoContext(r.Context(), "User deleted successfully",
+		"user_id", id,
+	)
+	utils.JSONSuccess(w, utils.SuccessResponse{Message: "user deleted"}, http.StatusOK)
 }

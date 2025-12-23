@@ -14,6 +14,9 @@ import (
 func SetupRoutes(srv *handlers.Server) *mux.Router {
 	router := mux.NewRouter()
 
+	router.Use(middleware.RequestIDMiddleware)
+	router.Use(middleware.LoggerMiddleware)
+
 	router.HandleFunc("/login", srv.LoginHandler).Methods("POST")
 	router.HandleFunc("/register", srv.CreateUserHandler).Methods("POST")
 	router.HandleFunc("/posts", srv.GetPostAllHandler).Methods("GET")

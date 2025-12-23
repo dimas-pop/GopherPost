@@ -1,9 +1,25 @@
-package handlers
+package utils
 
 import (
 	"encoding/json"
 	"net/http"
 )
+
+// -- Response --
+type SuccessResponse struct {
+	Message string `json:"message"`
+}
+
+type ErrorResponse struct {
+	Error string `json:"error"`
+}
+
+type LoginResponse struct {
+	Message string `json:"message"`
+	Token   string `json:"token"`
+}
+
+// -- Helper Function --
 
 func JSONSuccess(w http.ResponseWriter, data interface{}, code int) {
 	w.Header().Set("Content-Type", "application/json")

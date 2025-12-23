@@ -25,31 +25,31 @@ func (s *Server) LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&input)
 	if err != nil {
-		JSONError(w, "Invalid Input", http.StatusBadRequest)
+		utils.JSONError(w, "Invalid Input", http.StatusBadRequest)
 		return
 	}
 
 	user, err := db.GetUserByEmail(s.DB, input.Email)
 	if err != nil {
-		slog.WarnContext(r.Context(), "Invalid email or password", "error", err)
-		JSONError(w, "Invalid email or password", http.StatusUnauthorized)
+		slog.WarnContext(r.Context(), "Login failed: Invalid email or password", "error", err)
+		utils.JSONError(w, "Invalid email or password", http.StatusUnauthorized)
 		return
 	}
 
 	match := utils.CheckPasswordHash(input.Password, user.PasswordHash)
 	if !match {
 		slog.WarnContext(r.Context(), "Invalid check email or password", "error", err)
-		JSONError(w, "Invalid check email or password", http.StatusUnauthorized)
+		utils.JSONError(w, "Invalid check email or password", http.StatusUnauthorized)
 		return
 	}
 
 	token, err := utils.CreateToken(user.ID)
 	if err != nil {
 		slog.ErrorContext(r.Context(), "Error generating token", "error", err)
-		JSONError(w, "Error generating token", http.StatusInternalServerError)
+		utils.JSONError(w, "Error generating token", http.StatusInternalServerError)
 		return
 	}
 
 	slog.InfoContext(r.Context(), "Login succesfull")
-	JSONSuccess(w, LoginResponse{Message: "login successful", Token: token}, http.StatusOK)
+	utils.JSONSuccess(w, utils.LoginResponse{Message: "login successful", Token: token}, http.StatusOK)
 }
